@@ -37,10 +37,25 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: 检查并安装 Docker CLI
+        run: sudo apt-get update && sudo apt-get install -y docker.io
+
+      - name: 打印 Docker 版本信息
+        run: docker --version
+
+      - name: 验证 GitHub Secrets
+        run: |
+          echo "DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}"
+          echo "DOCKER_PASSWORD: [REDACTED]"
+
       - name: 登录到 Docker 仓库
         id: login
-        run: echo ${{ secrets.DOCKER_PASSWORD }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin reg.geeops.cn
-        continue-on-error: false
+        run: |
+          echo ${{ secrets.DOCKER_PASSWORD }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin reg.geeops.cn
+        continue-on-error: true
+
+      - name: 打印登录结果
+        run: docker info
 
       - name: 检查 Docker 登录成功
         if: ${{ steps.login.outcome == 'success' }}
@@ -51,6 +66,7 @@ jobs:
         run: echo "Docker 登录失败"
 
       - name: 拉取、标记并推送 Docker 镜像
+        if: ${{ steps.login.outcome == 'success' }}
         id: pull_tag_push
         run: |
           docker pull --platform ${{ github.event.inputs.ARCH }} ${{ github.event.inputs.IMAGE_NAME }}
